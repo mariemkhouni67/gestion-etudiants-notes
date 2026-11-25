@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Application de gestion des étudiants, matières et notes — Architecture SOA & Services Web">
+  <title>Gestion des Étudiants et Notes — SOA & RBAC</title>
+  
+  <!-- Google Fonts : Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Styles CSS modernes -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ============================================================ -->
+  <!-- ÉCRAN DE CONNEXION / AUTHENTIFICATION (Affiché si non connecté) -->
+  <!-- ============================================================ -->
+  <div class="auth-wrapper" id="authWrapper" style="display: none;">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="auth-logo">🎓</div>
+        <h2>Gestion des Notes</h2>
+        <p>Projet SOA & Services Web</p>
+      </div>
+
+      <!-- Onglets Connexion / Inscription -->
+      <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: var(--bg-input); padding: 4px; border-radius: var(--radius-md);">
+        <button type="button" class="btn btn-ghost" id="tabLogin" style="flex: 1; border: none; font-size: 0.85rem; padding: 0.5rem; border-radius: var(--radius-sm); background: var(--primary); color: #fff;">Connexion</button>
+        <button type="button" class="btn btn-ghost" id="tabRegister" style="flex: 1; border: none; font-size: 0.85rem; padding: 0.5rem; border-radius: var(--radius-sm); color: var(--text-muted);">Inscription</button>
+      </div>
+
+      <!-- Formulaire de Connexion -->
+      <form id="formLogin">
+        <div class="form-group">
+          <label for="loginEmail">Adresse Email</label>
+          <input type="email" id="loginEmail" placeholder="admin@gestion-notes.tn" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Mot de passe</label>
+          <div style="position: relative;">
+            <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+            <button type="button" id="toggleLoginPassword" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem;">👁️</button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" id="btnLoginSubmit" style="width: 100%; margin-top: 0.5rem; padding: 0.75rem;">
+          Se connecter
+        </button>
+      </form>
+
+      <!-- Formulaire d'Inscription (Étudiant) -->
+      <form id="formRegister" style="display: none;">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="regNom">Nom</label>
+            <input type="text" id="regNom" placeholder="Ben Ali" required>
+          </div>
+          <div class="form-group">
+            <label for="regPrenom">Prénom</label>
+            <input type="text" id="regPrenom" placeholder="Amine" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="regEmail">Email institutionnel</label>
+          <input type="email" id="regEmail" placeholder="amine.benali@etudiant.tn" required>
+        </div>
+        <div class="form-group">
+          <label for="regPassword">Mot de passe</label>
+          <input type="password" id="regPassword" placeholder="Au moins 6 caractères" minlength="6" required>
+        </div>
+        <button type="submit" class="btn btn-success" id="btnRegisterSubmit" style="width: 100%; margin-top: 0.5rem; padding: 0.75rem;">
+          Créer mon compte étudiant
+        </button>
+      </form>
+
+      <!-- Sélecteur rapide pour la démonstration universitaire -->
+      <div class="auth-quick-select">
+        <div class="auth-quick-title">⚡ Connexion rapide (Soutenance / Démo)</div>
+        <div class="quick-accounts-grid">
+          <button type="button" class="btn-quick-account" onclick="fillQuickLogin('admin@gestion-notes.tn', 'Admin@2026!')">
+            👑 Admin
+          </button>
+          <button type="button" class="btn-quick-account" onclick="fillQuickLogin('prof.math@gestion-notes.tn', 'Prof@2026!')">
+            👨‍🏫 Enseignant
+          </button>
+          <button type="button" class="btn-quick-account" onclick="fillQuickLogin('amine.benali@etudiant.tn', 'Etudiant@2026!')">
+            🎓 Étudiant
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- APPLICATION PRINCIPALE -->
+  <!-- ============================================================ -->
+  <div class="app-container" id="appContainer">
+
+    <!-- SIDEBAR / NAVIGATION -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">🎓</div>
+        <div class="sidebar-logo-text">
+          <h1>GestionNotes</h1>
+          <div class="badge-soa">Architecture SOA & RBAC</div>
+        </div>
+      </div>
+
+      <!-- Aperçu utilisateur connecté -->
+      <div class="sidebar-user-preview" id="sidebarUserPreview">
+        <div class="user-avatar-circle" id="sidebarAvatar">U</div>
+        <div class="user-preview-info">
+          <div class="user-preview-name" id="sidebarUserName">Utilisateur</div>
+          <span class="user-role-badge role-admin" id="sidebarUserRole">ADMIN</span>
+        </div>
+      </div>
+
+      <!-- Liens de navigation -->
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Navigation principale</div>
+
+        <!-- Dashboard (Tous) -->
+        <a class="nav-item active" data-page="dashboard" id="nav-dashboard">
+          <span class="nav-icon">📊</span>
+          <span>Tableau de bord</span>
+        </a>
+
+        <!-- Espace Étudiant (Visible si rôle ETUDIANT) -->
+        <a class="nav-item" data-page="espace-etudiant" id="nav-espace-etudiant" style="display: none;">
+          <span class="nav-icon">🏆</span>
+          <span>Mon Bulletin & Notes</span>
+        </a>
+
+        <!-- Étudiants (ADMIN et ENSEIGNANT) -->
+        <a class="nav-item" data-page="etudiants" id="nav-etudiants">
+          <span class="nav-icon">👩‍🎓</span>
+          <span>Étudiants</span>
+        </a>
+
+        <!-- Matières (ADMIN et ENSEIGNANT) -->
+        <a class="nav-item" data-page="matieres" id="nav-matieres">
+          <span class="nav-icon">📚</span>
+          <span>Matières</span>
+        </a>
+
+        <!-- Saisie des Notes (ADMIN et ENSEIGNANT) -->
+        <a class="nav-item" data-page="notes" id="nav-notes">
+          <span class="nav-icon">📝</span>
+          <span>Saisie des Notes</span>
+        </a>
+
+        <!-- Résultats & Moyennes (ADMIN et ENSEIGNANT) -->
+        <a class="nav-item" data-page="resultats" id="nav-resultats">
+          <span class="nav-icon">📈</span>
+          <span>Résultats & Moyennes</span>
+        </a>
+
+        <!-- Section Administration (Visible si ADMIN) -->
+        <div class="admin-only-nav" id="adminNavSection">
+          <div class="nav-section-title">Administration</div>
+          <a class="nav-item" data-page="affectations" id="nav-affectations">
+            <span class="nav-icon">🔗</span>
+            <span>Affectations Enseignants</span>
+          </a>
+          <a class="nav-item" data-page="utilisateurs" id="nav-utilisateurs">
+            <span class="nav-icon">👥</span>
+            <span>Comptes & Rôles</span>
+          </a>
+        </div>
+
+        <div class="nav-section-title">Compte</div>
+        <a class="nav-item" data-page="mon-profil" id="nav-mon-profil">
+          <span class="nav-icon">⚙️</span>
+          <span>Mon Profil & Sécurité</span>
+        </a>
+      </nav>
+
+      <!-- Pied de sidebar -->
+      <div class="sidebar-footer">
+        <button class="btn-sidebar-action" id="btnSidebarLogout">
+          <span>🚪</span> Déconnexion
+        </button>
+      </div>
+    </aside>
+
+    <!-- WRAPPER PRINCIPAL -->
+    <div class="main-wrapper">
+
+      <!-- TOPBAR / NAVBAR MODERNE -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="btn-toggle-menu" id="hamburgerBtn" aria-label="Ouvrir le menu">☰</button>
+          <div class="topbar-breadcrumb">
+            <span>Gestion</span>
+            <span>/</span>
+            <span class="crumb-active" id="topbarBreadcrumb">Tableau de bord</span>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <!-- Statut Serveur API & DB -->
+          <div class="api-status-pill" id="apiStatusPill" title="État de la connexion backend MySQL">
+            <div class="status-dot"></div>
+            <span id="apiStatusText">Connecté</span>
+          </div>
+
+          <!-- Basculer Dark / Light mode -->
+          <button class="btn-icon-topbar" id="btnThemeToggle" title="Changer de thème">
+            🌙
+          </button>
+
+          <!-- Profil Dropdown -->
+          <div class="topbar-profile-dropdown">
+            <button class="btn-profile-trigger" id="btnProfileTrigger">
+              <div class="user-avatar-circle" id="topbarAvatar" style="width: 30px; height: 30px; font-size: 0.8rem;">U</div>
+              <span style="font-size: 0.85rem; font-weight: 600;" id="topbarUserName">Utilisateur</span>
+              <span style="font-size: 0.7rem; color: var(--text-dim);">▼</span>
+            </button>
+            <div class="profile-dropdown-menu" id="profileDropdownMenu">
+              <div class="dropdown-user-header">
+                <div class="dropdown-user-name" id="dropdownUserName">Utilisateur</div>
+                <div class="dropdown-user-email" id="dropdownUserEmail">email@domaine.tn</div>
+              </div>
+              <a class="dropdown-link" onclick="navigateTo('mon-profil')">👤 Mon Profil</a>
+              <a class="dropdown-link logout" id="dropdownLogout">🚪 Déconnexion</a>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- ZONE DE CONTENU DES PAGES -->
+      <main class="page-content">
+
+        <!-- ============================================================ -->
+        <!-- 1. SECTION DASHBOARD -->
+        <!-- ============================================================ -->
+        <section class="page-section active" id="page-dashboard">
+          <div class="page-header">
+            <div class="page-title-group">
+              <h2>📊 <span id="dashWelcomeTitle">Tableau de bord</span></h2>
+              <p>Vue d'ensemble et indicateurs clés de performance</p>
+            </div>
+            <div id="dashRoleNotice"></div>
+          </div>
+
+          <!-- Cartes Statistiques KPI -->
+          <div class="stats-grid" id="statsGrid">
+            <div class="stat-card etudiants">
+              <div class="stat-icon">👩‍🎓</div>
+              <div class="stat-info">
+                <h3 id="stat-etudiants">—</h3>
+                <p>Étudiants inscrits</p>
+              </div>
+            </div>
+            <div class="stat-card matieres">
+              <div class="stat-icon">📚</div>
+              <div class="stat-info">
+                <h3 id="stat-matieres">—</h3>
+                <p>Matières enseignées</p>
+              </div>
+            </div>
+            <div class="stat-card notes">
+              <div class="stat-icon">📝</div>
+              <div class="stat-info">
+                <h3 id="stat-notes">—</h3>
+                <p>Notes enregistrées</p>
+              </div>
+            </div>
+            <div class="stat-card moyenne">
+              <div class="stat-icon">⚖️</div>
+              <div class="stat-info">
+                <h3 id="stat-moyenne">—</h3>
+                <p>Moyenne de promotion</p>
+              </div>
+            </div>
+            <div class="stat-card reussite">
+              <div class="stat-icon">🏆</div>
+              <div class="stat-info">
+                <h3 id="stat-taux">—</h3>
+                <p>Taux de réussite</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Grille Graphiques & Activités récentes -->
+          <div class="dashboard-grid">
+            <!-- Widget Analytique (Répartition des mentions & Résultats) -->
+            <div class="dashboard-widget">
+              <div class="widget-header">
+                <div class="widget-title">📈 Répartition des Résultats & Mentions</div>
+                <span class="badge" style="background: var(--primary-bg); color: var(--primary-light);">Promotion</span>
+              </div>
+              <div class="chart-container-wrapper" id="chartMentionsWrapper" style="display: flex; flex-direction: column; gap: 1rem;">
+                <div style="position: relative; width: 100%; max-height: 220px; display: flex; justify-content: center;">
+                  <canvas id="mentionsChartCanvas" style="max-height: 220px;"></canvas>
+                </div>
+                <!-- Barres de répartition pour un affichage précis -->
+                <div id="mentionsVisualBars" style="width: 100%; display: flex; flex-direction: column; gap: 0.65rem;"></div>
+              </div>
+            </div>
+
+            <!-- Widget Activité Récente (Dernières notes) -->
+            <div class="dashboard-widget">
+              <div class="widget-header">
+                <div class="widget-title">⚡ Dernières Notes Saisies</div>
+              </div>
+              <div id="recentNotesContainer" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <div class="loading"><div class="spinner"></div> Chargement...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tableau des Derniers Étudiants inscrits -->
+          <div class="dashboard-widget" style="margin-bottom: 1.5rem;">
+            <div class="widget-header">
+              <div class="widget-title">👩‍🎓 Derniers Étudiants Inscrits</div>
+              <button class="btn btn-ghost btn-sm" onclick="navigateTo('etudiants')">Voir tous →</button>
+            </div>
+            <div class="table-container" style="margin-bottom: 0;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Nom & Prénom</th>
+                    <th>Classe</th>
+                    <th>Email</th>
+                  </tr>
+                </thead>
+                <tbody id="dashRecentEtudiantsBody">
+                  <tr><td colspan="4" class="loading"><div class="spinner"></div> Chargement...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- 2. SECTION ÉTUDIANTS (Module 1) -->
+        <!-- ============================================================ -->
+        <section class="page-section" id="page-etudiants">
+          <div class="page-header">
+            <div class="page-title-group">
+              <h2>👩‍🎓 Gestion des Étudiants</h2>
+              <p>Consulter, ajouter, modifier ou supprimer des étudiants</p>
+            </div>
+            <button class="btn btn-primary" id="btnAddEtudiant">
+              ➕ Nouvel étudiant
+            </button>
+          </div>
+
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchEtudiant" placeholder="Rechercher par nom, prénom, email, classe...">
+              </div>
+              <select class="filter-select" id="filterClasseEtudiant">
+                <option value="">Toutes les classes</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nom</th>
+                  <th>Prénom</th>
+                  <th>Classe</th>
+                  <th>Email</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="etudiantsTableBody">
+                <tr><td colspan="6" class="loading"><div class="spinner"></div> Chargement des étudiants...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- 3. SECTION MATIÈRES (Module 2) -->
+        <!-- ============================================================ -->
+        <section class="page-section" id="page-matieres">
+          <div class="page-header">
+            <div class="page-title-group">
+              <h2>📚 Gestion des Matières</h2>
+              <p>Consulter les matières et leurs coefficients pondérés</p>
+            </div>
+            <button class="btn btn-primary" id="btnAddMatiere">
+              ➕ Nouvelle matière
+            </button>
+          </div>
+
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchMatiere" placeholder="Rechercher une matière...">
+              </div>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Intitulé de la matière</th>
+                  <th>Coefficient</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="matieresTableBody">
+                <tr><td colspan="4" class="loading"><div class="spinner"></div> Chargement des matières...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- 4. SECTION NOTES (Module 3) -->
+        <!-- ============================================================ -->
+        <section class="page-section" id="page-notes">
+          <div class="page-header">
+            <div class="page-title-group">
+              <h2>📝 Saisie des Notes</h2>
+              <p>Enregistrement des évaluations pour les matières autorisées</p>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 1.5rem; align-items: start;">
+            <!-- Formulaire d'ajout de note -->
+            <div class="card">
+              <h3 style="margin-bottom: 1.25rem;">➕ Enregistrer une note</h3>
+              <form id="formNote">
+                <div class="form-group">
+                  <label for="noteEtudiant">Sélectionner l'étudiant</label>
+                  <select id="noteEtudiant" required>
+                    <option value="">— Choisir un étudiant —</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="noteMatiere">Matière</label>
+                  <select id="noteMatiere" required>
+                    <option value="">— Choisir une matière —</option>
+                  </select>
+                </div>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="noteType">Type d'évaluation</label>
+                    <select id="noteType" required>
+                      <option value="">— Type —</option>
+                      <option value="DS">DS (25%)</option>
+                      <option value="EXAMEN">Examen (60%)</option>
+                      <option value="TP">TP (15%)</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="noteValeur">Note (/20)</label>
+                    <input type="number" id="noteValeur" min="0" max="20" step="0.25" placeholder="Ex: 15.50" required>
+                  </div>
+                </div>
+                <div class="form-actions" style="justify-content: flex-start;">
+                  <button type="submit" class="btn btn-success" id="btnSubmitNote">
+                    ✅ Valider et sauvegarder la note
+                  </button>
+                </div>
+              </form>
+              <div class="avertissement">
+                ⚠️ Une note doit être comprise entre 0 et 20. Les pondérations DS (25%), Examen (60%), TP (15%) sont appliquées au calcul de la matière.
+              </div>
+            </div>
+
+            <!-- Historique récent des notes -->
+            <div class="card">
+              <h3 style="margin-bottom: 1.25rem;">📋 Notes récentes enregistrées</h3>
+              <div class="table-container" style="margin-bottom: 0;">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Étudiant</th>
+                      <th>Matière</th>
+                      <th>Type</th>
+                      <th>Note</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tableNotesRecentesBody">
+                    <tr><td colspan="4" class="loading"><div class="spinner"></div> Chargement...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- 5. SECTION RÉSULTATS & MOYENNES -->
+        <!-- ============================================================ -->
+        <section class="page-section" id="page-resultats">
+          <div class="page-header">
+            <div class="page-title-group">
+              <h2>🏆 Résultats & Moyennes Pondérées</h2>
+              <p>Consulter les délibérations, bulletins et calculs officiels</p>
+            </div>
+          </div>
+
+          <div class="card" style="max-width: 580px; margin-bottom: 1.5rem;">
+            <div class="form-group">
+              <label for="resultatEtudiant">Sélectionner un étudiant pour afficher son bulletin</label>
+              <select id="resultatEtudiant">
+                <option value="">— Choisir un étudiant —</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" id="btnVoirResultats" style="width: 100%;">
+              📊 Calculer et afficher les résultats
+            </button>
+          </div>
+
+          <div id="resultatContent">
+            <div class="empty-state">
+              <div class="icon">🏆</div>
+              <h3>Sélectionnez un étudiant</h3>
+              <p>Choisissez un étudiant dans la liste déroulante ci-dessus pour calculer sa moyenne et afficher son bulletin complet.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- 6. SECTION ESPACE ÉTUDIANT (Visible uniquement par l'étudiant) -->
+        <!-- ============================================================ -->
+        <section class="page-section" id="page-espace-etudiant">
+          <div class="page-header">
+            <div class="page-title-group">
+              <h2>🎓 Mon Espace Personnel</h2>
+              <p>Consultez vos notes officielles, votre moyenne générale et votre statut</p>
+            </div>
+            <button class="btn btn-ghost" onclick="window.print()">
+              🖨️ Imprimer mon relevé de notes
+            </button>
+          </div>
+
+          <div id="monEspaceEtudiantContent">
+            <div class="loading"><div class="spinner"></div> Chargement de votre bulletin...</div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- 7. SECTION AFFECTATIONS ENSEIGNANTS-MATIERES (Admin) -->
+        <!-- ============================================================ -->
+        <section class="page-section" id="page-affectations">
+          <div class="page-header">
+            <div class="page-title-group">
+              <h2>🔗 Affectations Enseignants <-> Matières</h2>
+              <p>Associer des enseignants aux matières pour régir leurs droits de saisie</p>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem; align-items: start;">
+            <!-- Formulaire nouvelle affectation -->
+            <div class="card">
+              <h3 style="margin-bottom: 1rem;">Nouvelle affectation</h3>
+              <form id="formAffectation">
+                <div class="form-group">
+                  <label for="affEnseignant">Enseignant</label>
+                  <select id="affEnseignant" required>
+                    <option value="">— Choisir un enseignant —</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="affMatiere">Matière</label>
+                  <select id="affMatiere" required>
+                    <option value="">— Choisir une matière —</option>
+                  </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                  ➕ Affecter la matière
+                </button>
+              </form>
+            </div>
+
+            <!-- Tableau des affectations existantes -->
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Enseignant</th>
+                    <th>Email</th>
+                    <th>Matière affectée</th>
+                    <th>Coefficient</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="affectationsTableBody">
+                  <tr><td colspan="5" class="loading"><div class="spinner"></div> Chargement...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- 8. SECTION GESTION DES UTILISATEURS (Admin) -->
+        <!-- ============================================================ -->
+        <section class="page-section" id="page-utilisateurs">
+          <div class="page-header">
+            <div class="page-title-group">
+              <h2>👥 Gestion des Utilisateurs & Rôles</h2>
+              <p>Gérer les accès, attribuer les rôles et activer/désactiver des comptes</p>
+            </div>
+            <button class="btn btn-primary" id="btnAddUser">
+              ➕ Nouvel utilisateur
+            </button>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nom & Prénom</th>
+                  <th>Email</th>
+                  <th>Rôle</th>
+                  <th>Statut Actif</th>
+                  <th>Créé le</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody">
+                <tr><td colspan="7" class="loading"><div class="spinner"></div> Chargement des utilisateurs...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- 9. SECTION MON PROFIL & SÉCURITÉ -->
+        <!-- ============================================================ -->
+        <section class="page-section" id="page-mon-profil">
+          <div class="page-header">
+            <div class="page-title-group">
+              <h2>⚙️ Mon Profil & Sécurité</h2>
+              <p>Gérer vos informations personnelles et modifier votre mot de passe</p>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+            <!-- Informations personnelles -->
+            <div class="card">
+              <h3 style="margin-bottom: 1.25rem;">👤 Informations personnelles</h3>
+              <form id="formMonProfil">
+                <div class="form-group">
+                  <label for="profilNom">Nom</label>
+                  <input type="text" id="profilNom" required>
+                </div>
+                <div class="form-group">
+                  <label for="profilPrenom">Prénom</label>
+                  <input type="text" id="profilPrenom" required>
+                </div>
+                <div class="form-group">
+                  <label for="profilEmail">Adresse Email (non modifiable)</label>
+                  <input type="email" id="profilEmail" disabled style="opacity: 0.7;">
+                </div>
+                <div class="form-group">
+                  <label>Rôle attribué</label>
+                  <div><span class="user-role-badge role-admin" id="profilRoleBadge">ADMIN</span></div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">
+                  💾 Mettre à jour mes informations
+                </button>
+              </form>
+            </div>
+
+            <!-- Changement de mot de passe sécurisé -->
+            <div class="card">
+              <h3 style="margin-bottom: 1.25rem;">🔒 Modifier mon mot de passe</h3>
+              <form id="formChangePassword">
+                <div class="form-group">
+                  <label for="pwdOld">Mot de passe actuel</label>
+                  <input type="password" id="pwdOld" required placeholder="••••••••">
+                </div>
+                <div class="form-group">
+                  <label for="pwdNew">Nouveau mot de passe</label>
+                  <input type="password" id="pwdNew" minlength="6" required placeholder="Au moins 6 caractères">
+                </div>
+                <div class="form-group">
+                  <label for="pwdConfirm">Confirmer le nouveau mot de passe</label>
+                  <input type="password" id="pwdConfirm" minlength="6" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn btn-success" style="margin-top: 1rem;">
+                  🔑 Valider le nouveau mot de passe
+                </button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- 10. PAGES D'ERREUR 403 & 404 -->
+        <!-- ============================================================ -->
+        <section class="page-section" id="page-403">
+          <div class="empty-state">
+            <div class="icon" style="font-size: 4rem;">🚫</div>
+            <h2>Accès Interdit (HTTP 403)</h2>
+            <p>Vous n'avez pas les autorisations nécessaires pour accéder à cette ressource ou effectuer cette action.</p>
+            <button class="btn btn-primary" onclick="navigateTo('dashboard')" style="margin-top: 1rem;">
+              Retour au tableau de bord
+            </button>
+          </div>
+        </section>
+
+        <section class="page-section" id="page-404">
+          <div class="empty-state">
+            <div class="icon" style="font-size: 4rem;">🔍</div>
+            <h2>Page Non Trouvée (HTTP 404)</h2>
+            <p>La page demandée n'existe pas ou a été déplacée.</p>
+            <button class="btn btn-primary" onclick="navigateTo('dashboard')" style="margin-top: 1rem;">
+              Retour au tableau de bord
+            </button>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODALES FLOTTANTES -->
+  <!-- ============================================================ -->
+
+  <!-- Modal Étudiant -->
+  <div class="modal-overlay" id="modalEtudiant">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modalEtudiantTitle">Ajouter un étudiant</h3>
+        <button class="btn-icon" id="closeModalEtudiant" aria-label="Fermer">✕</button>
+      </div>
+      <form id="formEtudiant">
+        <input type="hidden" id="etudiantId">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="etudiantNom">Nom</label>
+            <input type="text" id="etudiantNom" placeholder="Ex: Ben Ali" required>
+          </div>
+          <div class="form-group">
+            <label for="etudiantPrenom">Prénom</label>
+            <input type="text" id="etudiantPrenom" placeholder="Ex: Amine" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="etudiantClasse">Classe</label>
+          <input type="text" id="etudiantClasse" placeholder="Ex: 2ème Info" required>
+        </div>
+        <div class="form-group">
+          <label for="etudiantEmail">Email institutionnel</label>
+          <input type="email" id="etudiantEmail" placeholder="amine.benali@etudiant.tn" required>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" id="cancelEtudiant">Annuler</button>
+          <button type="submit" class="btn btn-primary" id="submitEtudiant">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Matière -->
+  <div class="modal-overlay" id="modalMatiere">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modalMatiereTitle">Ajouter une matière</h3>
+        <button class="btn-icon" id="closeModalMatiere" aria-label="Fermer">✕</button>
+      </div>
+      <form id="formMatiere">
+        <input type="hidden" id="matiereId">
+        <div class="form-group">
+          <label for="matiereIntitule">Intitulé</label>
+          <input type="text" id="matiereIntitule" placeholder="Ex: Algorithmique" required>
+        </div>
+        <div class="form-group">
+          <label for="matiereCoefficient">Coefficient</label>
+          <input type="number" id="matiereCoefficient" min="0.1" step="0.1" placeholder="Ex: 2.50" required>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" id="cancelMatiere">Annuler</button>
+          <button type="submit" class="btn btn-primary" id="submitMatiere">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Utilisateur (Admin) -->
+  <div class="modal-overlay" id="modalUser">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modalUserTitle">Créer un utilisateur</h3>
+        <button class="btn-icon" id="closeModalUser" aria-label="Fermer">✕</button>
+      </div>
+      <form id="formUser">
+        <input type="hidden" id="userId">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="userNom">Nom</label>
+            <input type="text" id="userNom" placeholder="Ex: Gharbi" required>
+          </div>
+          <div class="form-group">
+            <label for="userPrenom">Prénom</label>
+            <input type="text" id="userPrenom" placeholder="Ex: Kais" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="userEmail">Adresse Email</label>
+          <input type="email" id="userEmail" placeholder="prof.kais@gestion-notes.tn" required>
+        </div>
+        <div class="form-group">
+          <label for="userRole">Rôle utilisateur</label>
+          <select id="userRole" required>
+            <option value="ENSEIGNANT">Enseignant</option>
+            <option value="ADMIN">Administrateur</option>
+            <option value="ETUDIANT">Étudiant</option>
+          </select>
+        </div>
+        <div class="form-group" id="groupUserPassword">
+          <label for="userPassword">Mot de passe initial</label>
+          <input type="password" id="userPassword" placeholder="Au moins 6 caractères" minlength="6">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" id="cancelUser">Annuler</button>
+          <button type="submit" class="btn btn-primary" id="submitUser">Enregistrer le compte</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Confirmation Suppression -->
+  <div class="modal-overlay" id="modalConfirm">
+    <div class="modal" style="max-width: 420px; text-align: center;">
+      <div style="font-size: 3rem; margin-bottom: 0.5rem;">⚠️</div>
+      <h3 style="margin-bottom: 0.5rem;" id="confirmTitle">Confirmation de suppression</h3>
+      <p id="confirmMessage" style="font-size: 0.9rem; margin-bottom: 1.5rem;">Êtes-vous certain de vouloir effectuer cette action ?</p>
+      <div style="display: flex; gap: 0.75rem; justify-content: center;">
+        <button class="btn btn-ghost" id="btnCancelConfirm">Annuler</button>
+        <button class="btn btn-danger" id="btnOkConfirm">Oui, supprimer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container pour les notifications dynamiques -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Scripts JavaScript & Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
